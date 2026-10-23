@@ -61,46 +61,55 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-primary-glow: var(--primary-glow);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", "Noto Serif TC", Georgia, serif;
 }
 
 :root {
+  /* Watercolor Florence palette: warm paper, Arno teal, terracotta dome, ochre walls, pale sky. */
   --radius: 0.75rem;
-  --background: oklch(0.13 0.012 285);
-  --foreground: oklch(0.96 0.005 285);
-  --card: oklch(0.17 0.018 285);
-  --card-foreground: oklch(0.96 0.005 285);
-  --popover: oklch(0.17 0.018 285);
-  --popover-foreground: oklch(0.96 0.005 285);
-  --primary: oklch(0.65 0.22 292);
-  --primary-foreground: oklch(0.99 0 0);
-  --primary-glow: oklch(0.74 0.18 300);
-  --secondary: oklch(0.22 0.02 285);
-  --secondary-foreground: oklch(0.96 0.005 285);
-  --muted: oklch(0.22 0.02 285);
-  --muted-foreground: oklch(0.68 0.02 285);
-  --accent: oklch(0.25 0.04 292);
-  --accent-foreground: oklch(0.96 0.005 285);
-  --destructive: oklch(0.65 0.22 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.65 0.22 292);
-  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
-  --gradient-glow: radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--primary) 35%, transparent), transparent 70%);
-  --shadow-glow: 0 10px 40px -10px color-mix(in oklab, var(--primary) 60%, transparent);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.17 0.018 285);
-  --sidebar-foreground: oklch(0.96 0.005 285);
-  --sidebar-primary: oklch(0.65 0.22 292);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.25 0.04 292);
-  --sidebar-accent-foreground: oklch(0.96 0.005 285);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.65 0.22 292);
+  --background: oklch(0.975 0.014 85);
+  --foreground: oklch(0.3 0.04 225);
+  --card: oklch(0.99 0.01 85 / 0.82);
+  --card-foreground: oklch(0.3 0.04 225);
+  --popover: oklch(0.99 0.01 85);
+  --popover-foreground: oklch(0.3 0.04 225);
+  --primary: oklch(0.56 0.13 40);
+  --primary-foreground: oklch(0.99 0.008 85);
+  --primary-glow: oklch(0.5 0.08 200);
+  --primary-soft: oklch(0.66 0.13 55);
+  --sky: oklch(0.86 0.045 235);
+  --river: oklch(0.72 0.08 190);
+  --secondary: oklch(0.93 0.025 230);
+  --secondary-foreground: oklch(0.3 0.04 225);
+  --muted: oklch(0.94 0.02 80);
+  --muted-foreground: oklch(0.47 0.035 225);
+  --accent: oklch(0.92 0.04 195);
+  --accent-foreground: oklch(0.3 0.04 225);
+  --destructive: oklch(0.53 0.17 28);
+  --destructive-foreground: oklch(0.99 0.008 85);
+  --border: oklch(0.55 0.05 60 / 22%);
+  --input: oklch(0.55 0.05 60 / 30%);
+  --ring: oklch(0.56 0.13 40);
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-soft));
+  --gradient-glow:
+    radial-gradient(70% 55% at 50% 0%, color-mix(in oklab, var(--sky) 70%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 85% 25%, color-mix(in oklab, var(--primary-soft) 28%, transparent), transparent 70%),
+    radial-gradient(50% 40% at 10% 90%, color-mix(in oklab, var(--river) 22%, transparent), transparent 70%);
+  --shadow-glow: 0 10px 30px -12px color-mix(in oklab, var(--primary) 55%, transparent);
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --chart-1: oklch(0.56 0.13 40);
+  --chart-2: oklch(0.5 0.08 200);
+  --chart-3: oklch(0.74 0.12 62);
+  --chart-4: oklch(0.72 0.06 235);
+  --chart-5: oklch(0.6 0.08 150);
+  --sidebar: oklch(0.96 0.016 85);
+  --sidebar-foreground: oklch(0.3 0.04 225);
+  --sidebar-primary: oklch(0.56 0.13 40);
+  --sidebar-primary-foreground: oklch(0.99 0.008 85);
+  --sidebar-accent: oklch(0.92 0.04 195);
+  --sidebar-accent-foreground: oklch(0.3 0.04 225);
+  --sidebar-border: oklch(0.55 0.05 60 / 22%);
+  --sidebar-ring: oklch(0.56 0.13 40);
 }
 
 .dark {
@@ -146,13 +155,31 @@
   body {
     font-family: var(--font-sans);
     background-color: var(--color-background);
+    background-image: var(--paper-texture);
     color: var(--color-foreground);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 }
 
 @utility bg-gradient-primary { background-image: var(--gradient-primary); }
 @utility bg-gradient-glow { background-image: var(--gradient-glow); }
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
+/* Soft watercolor wash of the Florence painting behind the hero. */
+@utility bg-watercolor-hero {
+  background-image:
+    var(--paper-texture),
+    linear-gradient(to bottom, color-mix(in oklab, var(--background) 88%, transparent) 0%, color-mix(in oklab, var(--background) 70%, transparent) 50%, var(--background) 92%),
+    url("/florence-watercolor.webp");
+  background-size: auto, cover, cover;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-position: 0 0, center, center 30%;
+}
 @utility text-gradient {
   background-image: var(--gradient-primary);
   -webkit-background-clip: text;

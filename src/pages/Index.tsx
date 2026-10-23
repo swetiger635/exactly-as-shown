@@ -28,7 +28,7 @@ export default function Index() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<Button asChild variant="hero"><Link to="/signin">Sign in / 登入</Link></Button>} />
       <main className="flex-1">
-        <section className="relative overflow-hidden">
+        <section className="relative overflow-hidden bg-watercolor-hero">
           <div className="pointer-events-none absolute inset-0 bg-gradient-glow" />
           <div className="relative mx-auto max-w-4xl px-5 pb-24 pt-24 text-center md:pt-32">
             <p className="fade-up mb-6 inline-block rounded-full border border-border bg-card px-4 py-1 text-xs text-muted-foreground">
