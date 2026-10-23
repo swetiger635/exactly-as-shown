@@ -1,13 +1,16 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SiteHeader, SiteFooter } from "@/components/SiteHeader";
+import { useAuthUser } from "@/components/RequireAuth";
+import { useHead } from "@/hooks/use-head";
 
-export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({
+export default function AppPage() {
+  useHead({
+    title: "Dashboard · Flight Price Notifier",
     meta: [
-      { title: "Dashboard · Flight Price Notifier" },
       { name: "description", content: "Your Flight Price Notifier dashboard." },
       { property: "og:title", content: "Dashboard · Flight Price Notifier" },
       { property: "og:description", content: "Your fare-tracking dashboard." },
@@ -15,20 +18,16 @@ export const Route = createFileRoute("/_authenticated/app")({
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
-  }),
-  component: AppPage,
-});
-
-function AppPage() {
-  const { user } = Route.useRouteContext();
+  });
+  const user = useAuthUser();
   const navigate = useNavigate();
-  const { queryClient } = Route.useRouteContext();
+  const queryClient = useQueryClient();
 
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/signin", replace: true });
+    navigate("/signin", { replace: true });
   }
 
   return (

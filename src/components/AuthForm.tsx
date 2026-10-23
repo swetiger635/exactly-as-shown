@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     setLoading(false);
     if (error) return setError(error.message);
     if (!data.session) return setError("請到信箱確認後再登入。Check your email to confirm.");
-    navigate({ to: "/app" });
+    navigate("/app");
   }
 
   return (

@@ -22,3 +22,15 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Architecture
+
+This is a plain **Vite + React single-page app** (no SSR):
+
+- Routing: React Router (`src/routes.tsx`) — `/`, `/signin`, `/signup`, and `/app` (requires sign-in via `RequireAuth`).
+- Auth: Supabase in the browser (`src/integrations/supabase/client.ts`), configured from `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time.
+- Build: `npm run build` emits a static site to `dist/`.
+
+## Deploying to Vercel
+
+`vercel.json` sets the Vite framework preset, `dist/` as the output directory, and an SPA fallback rewrite so deep links such as `/app` load `index.html` and resolve client-side. Make sure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are available at build time (from `.env` or the Vercel project's environment variables).
