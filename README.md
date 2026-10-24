@@ -34,3 +34,17 @@ This is a plain **Vite + React single-page app** (no SSR):
 ## Deploying to Vercel
 
 `vercel.json` sets the Vite framework preset, `dist/` as the output directory, and an SPA fallback rewrite so deep links such as `/app` load `index.html` and resolve client-side. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to the Vercel project's environment variables (same values as `.env`) so they are available at build time.
+
+## Fare alerts backend (M1)
+
+The subscribe UI on `/app` calls an AWS HTTP API (`VITE_FLIGHT_API_URL`); the browser holds no AWS credentials. Lambda sources live in `aws/lambdas/`:
+
+| Lambda | Role |
+| --- | --- |
+| `save_subscription` | `POST /subscribe` → upserts a row in DynamoDB `subscriptions` (PK `email`, SK `route`) |
+| `list_subscriptions` | `GET /subscriptions?email=` → the user's rows (no auth yet — production should verify the Supabase JWT) |
+| `parser_wrapper` | EventBridge `rate(30 minutes)` → reads `flight-routes.json` from S3, fans out one parser per route |
+| `parser` | Next month's cheapest fare from Travelpayouts (TWD gate, USD extra) → enqueues matches to SQS `flight-fare-queue` |
+| `fare_notification` | SQS consumer → dedups via `notification_history` (24h floor, re-alert on ≥20% or ≥NT$2,000 drop) → emails via Resend |
+
+API keys are read at runtime from AWS Secrets Manager (`flight/travelpayouts`, `flight/resend`) — never commit them.
