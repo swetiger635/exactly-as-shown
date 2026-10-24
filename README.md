@@ -41,7 +41,7 @@ The subscribe UI on `/app` calls an AWS HTTP API (`VITE_FLIGHT_API_URL`); the br
 
 | Lambda | Role |
 | --- | --- |
-| `save_subscription` | `POST /subscribe` → upserts a row in DynamoDB `subscriptions` (PK `email`, SK `route`) |
+| `save_subscription` | `POST /subscribe` → upserts a row in DynamoDB `subscriptions` (PK `email`, SK `route`); plans: tokyo (TPE-TYO), seoul (TPE-SEL), london (TPE-LON) |
 | `list_subscriptions` | `GET /subscriptions?email=` → the user's rows (no auth yet — production should verify the Supabase JWT) |
 | `parser_wrapper` | EventBridge `rate(30 minutes)` → reads `flight-routes.json` from S3, fans out one parser per route |
 | `parser` | Next month's cheapest fare from Travelpayouts (TWD gate, USD extra) → enqueues matches to SQS `flight-fare-queue` |

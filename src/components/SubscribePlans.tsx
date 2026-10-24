@@ -14,6 +14,7 @@ import {
 const PLANS: { name: PlanName; title: string; route: string; hint: number }[] = [
   { name: "tokyo", title: "台北 ✈ 東京", route: "TPE-TYO", hint: 7600 },
   { name: "seoul", title: "台北 ✈ 首爾", route: "TPE-SEL", hint: 7100 },
+  { name: "london", title: "台北 ✈ 倫敦", route: "TPE-LON", hint: 23000 },
 ];
 
 const twd = (n: number) => `NT$${n.toLocaleString("en-US")}`;
@@ -26,7 +27,7 @@ export function SubscribePlans({ email }: { email: string }) {
   const byRoute = new Map((subs.data ?? []).map((s) => [s.route, s] as const));
 
   return (
-    <section className="w-full max-w-3xl">
+    <section className="w-full max-w-5xl">
       <div className="text-center">
         <h2 className="text-2xl font-bold">選一條航線，設定目標價</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -39,7 +40,7 @@ export function SubscribePlans({ email }: { email: string }) {
           無法載入你的訂閱：{(subs.error as Error).message}
         </p>
       )}
-      <div className="mt-8 grid gap-5 md:grid-cols-2">
+      <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {PLANS.map((plan) => (
           <PlanCard
             key={plan.name}

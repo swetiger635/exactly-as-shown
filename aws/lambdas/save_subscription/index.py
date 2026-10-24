@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 import boto3
 
-PLANS = {"tokyo": ("TPE", "TYO"), "seoul": ("TPE", "SEL")}
+PLANS = {"tokyo": ("TPE", "TYO"), "seoul": ("TPE", "SEL"), "london": ("TPE", "LON")}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ddb = boto3.resource("dynamodb").Table("subscriptions")
 
@@ -26,7 +26,7 @@ def handler(event, context):
     if not EMAIL_RE.match(email):
         return _resp(400, {"error": "invalid email"})
     if plan not in PLANS:
-        return _resp(400, {"error": "plan_name must be tokyo or seoul"})
+        return _resp(400, {"error": "plan_name must be tokyo, seoul or london"})
     try:
         target = Decimal(str(data.get("target_price")))
     except Exception:

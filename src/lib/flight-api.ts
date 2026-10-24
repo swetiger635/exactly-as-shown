@@ -2,7 +2,7 @@
 // The browser holds no AWS credentials; it only calls these public HTTP endpoints.
 const API_URL: string = (import.meta.env["VITE_FLIGHT_API_URL"] ?? "").replace(/\/+$/, "");
 
-export type PlanName = "tokyo" | "seoul";
+export type PlanName = "tokyo" | "seoul" | "london";
 
 export type Subscription = {
   email: string;

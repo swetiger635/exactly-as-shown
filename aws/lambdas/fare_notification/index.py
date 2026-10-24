@@ -15,7 +15,7 @@ UA = "Mozilla/5.0 (compatible; flight-notifier/1.0)"
 FLOOR_HOURS = float(os.environ.get("NOTIFY_FLOOR_HOURS", "24"))
 REALERT_PCT = float(os.environ.get("REALERT_PCT", "20"))
 REALERT_ABS = float(os.environ.get("REALERT_ABS_TWD", "2000"))
-CITY = {"TPE": "台北", "TYO": "東京", "SEL": "首爾"}
+CITY = {"TPE": "台北", "TYO": "東京", "SEL": "首爾", "LON": "倫敦"}
 
 _secrets = boto3.client("secretsmanager")
 _history = boto3.resource("dynamodb").Table("notification_history")
