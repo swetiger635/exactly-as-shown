@@ -1,14 +1,17 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, Check } from "lucide-react";
+import { BellRing, Check, Clock, CreditCard, RotateCcw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  cancelSubscription,
+  goToCheckout,
   listSubscriptions,
   saveSubscription,
   type PlanName,
   type Subscription,
+  type SubscriptionStatus,
 } from "@/lib/flight-api";
 
 const PLANS: { name: PlanName; title: string; route: string; hint: number }[] = [
@@ -19,20 +22,62 @@ const PLANS: { name: PlanName; title: string; route: string; hint: number }[] = 
 
 const twd = (n: number) => `NT$${n.toLocaleString("en-US")}`;
 
-export function SubscribePlans({ email }: { email: string }) {
+const BADGE: Record<SubscriptionStatus, { label: string; icon: ReactNode; className: string }> = {
+  active: {
+    label: "已訂閱（有效）",
+    icon: <Check className="h-3.5 w-3.5" />,
+    className: "bg-accent text-accent-foreground",
+  },
+  pending_payment: {
+    label: "未完成付款",
+    icon: <Clock className="h-3.5 w-3.5" />,
+    className: "bg-secondary text-secondary-foreground",
+  },
+  cancelled: {
+    label: "已取消",
+    icon: <XCircle className="h-3.5 w-3.5" />,
+    className: "bg-muted text-muted-foreground",
+  },
+  expired: {
+    label: "已結束",
+    icon: <XCircle className="h-3.5 w-3.5" />,
+    className: "bg-muted text-muted-foreground",
+  },
+};
+
+export function SubscribePlans({
+  email,
+  awaitingPayment = false,
+}: {
+  email: string;
+  awaitingPayment?: boolean;
+}) {
   const queryClient = useQueryClient();
   const key = ["subscriptions", email];
-  const subs = useQuery({ queryKey: key, queryFn: () => listSubscriptions(email) });
-
-  const byRoute = new Map((subs.data ?? []).map((s) => [s.route, s] as const));
+  const [pollUntil] = useState(() => (awaitingPayment ? Date.now() + 60_000 : 0));
+  const subs = useQuery({
+    queryKey: key,
+    queryFn: listSubscriptions,
+    // Right after paying, ECPay's server-to-server callback may land a few seconds after the
+    // browser returns: refresh while any card is still pending, for up to a minute.
+    refetchInterval: (query) =>
+      Date.now() < pollUntil &&
+      query.state.data?.subscriptions.some((s) => s.subscription_status === "pending_payment")
+        ? 3000
+        : false,
+  });
+  const byRoute = new Map((subs.data?.subscriptions ?? []).map((s) => [s.route, s] as const));
+  const price = subs.data?.monthly_price;
 
   return (
     <section className="w-full max-w-5xl">
       <div className="text-center">
         <h2 className="text-2xl font-bold">選一條航線，設定目標價</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Pick a route and a TWD budget — we check fares every 30 minutes and email you when it
-          drops to your target.
+          {price
+            ? `每條航線月費 ${twd(price)}，以信用卡定期定額扣款，隨時可取消。`
+            : "以信用卡定期定額按月扣款，隨時可取消。"}
+          我們每 30 分鐘查一次票價，降到目標價就寄信通知你。
         </p>
       </div>
       {subs.isError && (
@@ -45,10 +90,10 @@ export function SubscribePlans({ email }: { email: string }) {
           <PlanCard
             key={plan.name}
             plan={plan}
-            email={email}
+            price={price}
             current={byRoute.get(plan.route)}
             loading={subs.isLoading}
-            onSaved={() => queryClient.invalidateQueries({ queryKey: key })}
+            onChanged={() => queryClient.invalidateQueries({ queryKey: key })}
           />
         ))}
       </div>
@@ -58,41 +103,73 @@ export function SubscribePlans({ email }: { email: string }) {
 
 function PlanCard({
   plan,
-  email,
+  price,
   current,
   loading,
-  onSaved,
+  onChanged,
 }: {
   plan: (typeof PLANS)[number];
-  email: string;
+  price: number | undefined;
   current: Subscription | undefined;
   loading: boolean;
-  onSaved: () => void;
+  onChanged: () => void;
 }) {
+  const status = current?.subscription_status;
+  const paid = status === "active" || status === "cancelled";
   const [value, setValue] = useState("");
   const [editing, setEditing] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const subscribed = Boolean(current);
-  const showForm = !subscribed || editing;
+  const [redirecting, setRedirecting] = useState(false);
 
-  const mutation = useMutation({
+  const save = useMutation({
     mutationFn: (target: number) =>
-      saveSubscription({ email, plan_name: plan.name, target_price: target }),
-    onSuccess: () => {
+      saveSubscription({ plan_name: plan.name, target_price: target }),
+    onSuccess: (result) => {
+      if (result.kind === "checkout") {
+        setRedirecting(true);
+        goToCheckout(result.html);
+        return;
+      }
       setEditing(false);
       setValue("");
-      onSaved();
+      onChanged();
     },
     onError: (e: Error) => setError(e.message),
   });
+
+  const cancel = useMutation({
+    mutationFn: () => cancelSubscription(plan.route),
+    onSuccess: () => {
+      setConfirmCancel(false);
+      onChanged();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const busy = loading || save.isPending || cancel.isPending || redirecting;
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     const target = Number(value);
     if (!Number.isFinite(target) || target <= 0) return setError("請輸入大於 0 的台幣金額。");
-    mutation.mutate(Math.round(target));
+    save.mutate(Math.round(target));
   }
+
+  function payWithCurrentTarget() {
+    setError(null);
+    if (current) save.mutate(current.target_price);
+  }
+
+  const showForm = !current || editing;
+  const submitLabel = redirecting
+    ? "前往付款頁面…"
+    : save.isPending
+      ? "處理中…"
+      : paid
+        ? "儲存新目標價"
+        : `訂閱並付款${price ? ` ${twd(price)}/月` : ""}`;
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-6 text-left">
@@ -101,23 +178,70 @@ function PlanCard({
           <h3 className="text-xl font-semibold">{plan.title}</h3>
           <p className="text-sm text-primary-glow">{plan.route}</p>
         </div>
-        {subscribed && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-            <Check className="h-3.5 w-3.5" /> 已訂閱
+        {status && (
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${BADGE[status].className}`}
+          >
+            {BADGE[status].icon} {BADGE[status].label}
           </span>
         )}
       </div>
 
-      {subscribed && current && !editing && (
+      {current && !editing && (
         <div className="mt-5 flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">目標價 Target</p>
           <p className="text-3xl font-bold">{twd(current.target_price)}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            票價低於或等於這個金額時，我們會寄信通知你。
-          </p>
-          <Button className="mt-5 self-start" variant="outline" onClick={() => setEditing(true)}>
-            更新目標價
-          </Button>
+          <StatusNote current={current} />
+          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+
+          <div className="mt-auto flex flex-wrap gap-2 pt-5">
+            {status === "pending_payment" && (
+              <Button variant="hero" onClick={payWithCurrentTarget} disabled={busy}>
+                <CreditCard /> {redirecting ? "前往付款頁面…" : "完成付款"}
+              </Button>
+            )}
+            {status === "expired" && (
+              <Button variant="hero" onClick={payWithCurrentTarget} disabled={busy}>
+                <RotateCcw /> {redirecting ? "前往付款頁面…" : "重新訂閱"}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setEditing(true)} disabled={busy}>
+              更新目標價
+            </Button>
+            {status === "active" && !confirmCancel && (
+              <Button variant="ghost" onClick={() => setConfirmCancel(true)} disabled={busy}>
+                取消訂閱
+              </Button>
+            )}
+          </div>
+
+          {status === "active" && confirmCancel && (
+            <div className="mt-4 rounded-xl border border-border bg-muted/60 p-4">
+              <p className="text-sm">
+                確定要取消嗎？之後不會再扣款，已付費的這一期
+                {current.current_period_end_date ? `（到 ${current.current_period_end_date}）` : ""}
+                仍會繼續通知你。
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => cancel.mutate()}
+                  disabled={busy}
+                >
+                  {cancel.isPending ? "取消中…" : "確定取消"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmCancel(false)}
+                  disabled={busy}
+                >
+                  先不要
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -134,19 +258,24 @@ function PlanCard({
             placeholder={`例如 ${plan.hint}`}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            disabled={loading || mutation.isPending}
+            disabled={busy}
           />
           <p className="text-xs text-muted-foreground">
             目前最低價約 {twd(plan.hint)}，可以設定在這附近。
+            {!paid && " 送出後會前往綠界付款頁面。"}
           </p>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="mt-auto flex gap-2 pt-2">
-            <Button type="submit" variant="hero" disabled={loading || mutation.isPending}>
-              <BellRing />{" "}
-              {mutation.isPending ? "儲存中…" : subscribed ? "儲存新目標價" : "開始追蹤"}
+            <Button type="submit" variant="hero" disabled={busy}>
+              <BellRing /> {submitLabel}
             </Button>
             {editing && (
-              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setEditing(false)}
+                disabled={busy}
+              >
                 取消
               </Button>
             )}
@@ -155,4 +284,15 @@ function PlanCard({
       )}
     </div>
   );
+}
+
+function StatusNote({ current }: { current: Subscription }) {
+  const until = current.current_period_end_date;
+  const text: Record<SubscriptionStatus, string> = {
+    active: `票價低於或等於目標價時會寄信通知你。${until ? `本期有效至 ${until}，之後每月自動續訂。` : ""}`,
+    pending_payment: "尚未完成付款，付款後才會開始通知。",
+    cancelled: `已停止續訂。${until ? `${until} 之前仍會通知你。` : ""}`,
+    expired: "訂閱已結束，不會再通知。重新訂閱即可恢復。",
+  };
+  return <p className="mt-2 text-xs text-muted-foreground">{text[current.subscription_status]}</p>;
 }

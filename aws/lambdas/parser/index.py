@@ -1,8 +1,11 @@
 """flight-parser: one route per invocation.
 
 Fetch next month's cheapest fare (TWD = the gate, USD = best-effort extra line),
-scan subscribers on that route, and enqueue every subscriber whose TWD target is met.
-M1 has no payment guard: every subscription row is eligible.
+scan subscribers on that route, and enqueue every PAYING subscriber whose TWD target is met.
+
+M2 paywall (grace-aware): serve `active` rows and `cancelled` rows still inside their paid period
+(current_period_end >= now). A cancelled row whose period has passed is lazily flipped to `expired`.
+pending_payment / expired / legacy rows without a status are never alerted.
 """
 import json, os, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -11,6 +14,7 @@ import boto3
 from boto3.dynamodb.conditions import Attr
 
 UA = "Mozilla/5.0 (compatible; flight-notifier/1.0)"
+TS_FMT = "%Y-%m-%dT%H:%M:%SZ"  # must match the callbacks: grace checks compare these strings
 TZ_TPE = timezone(timedelta(hours=8))
 
 _secrets = boto3.client("secretsmanager")
@@ -78,6 +82,16 @@ def _subscribers(route):
         kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
 
+def paid_status(item, now_s):
+    """'serve', 'expire' (cancelled and past its paid period) or 'skip'."""
+    status = item.get("subscription_status")
+    if status == "active":
+        return "serve"
+    if status == "cancelled":
+        return "serve" if item.get("current_period_end", "") >= now_s else "expire"
+    return "skip"
+
+
 def handler(event, context):
     origin = event["origin"]
     destination = event["destination"]
@@ -94,8 +108,20 @@ def handler(event, context):
           + (f" / {us['price']} USD" if us else " / USD n/a"))
 
     cheapest = Decimal(str(tw["price"]))
-    matched = 0
+    now_s = datetime.now(timezone.utc).strftime(TS_FMT)
+    matched, unpaid, expired = 0, 0, 0
     for it in _subscribers(route):
+        decision = paid_status(it, now_s)
+        if decision == "expire":
+            _table.update_item(Key={"email": it["email"], "route": it["route"]},
+                               UpdateExpression="SET subscription_status=:x, expired_at=:n, updated_at=:n",
+                               ConditionExpression="subscription_status = :c",
+                               ExpressionAttributeValues={":x": "expired", ":c": "cancelled", ":n": now_s})
+            expired += 1
+            continue
+        if decision == "skip":
+            unpaid += 1
+            continue
         tp = it.get("target_price")
         if tp is None or Decimal(str(tp)) < cheapest:
             continue
@@ -108,5 +134,6 @@ def handler(event, context):
                                     "depart_date": us["depart_date"], "return_date": us["return_date"]}
         _sqs.send_message(QueueUrl=_queue_url(), MessageBody=json.dumps(body))
         matched += 1
-    print(f"{route}: enqueued {matched} match(es)")
-    return {"ok": True, "route": route, "month": month, "cheapest_twd": tw["price"], "matched": matched}
+    print(f"{route}: enqueued {matched} match(es); skipped {unpaid} unpaid; expired {expired} after grace")
+    return {"ok": True, "route": route, "month": month, "cheapest_twd": tw["price"], "matched": matched,
+            "skipped_unpaid": unpaid, "expired_after_grace": expired}

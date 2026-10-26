@@ -35,7 +35,7 @@ This is a plain **Vite + React single-page app** (no SSR):
 
 `vercel.json` sets the Vite framework preset, `dist/` as the output directory, and an SPA fallback rewrite so deep links such as `/app` load `index.html` and resolve client-side. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to the Vercel project's environment variables (same values as `.env`) so they are available at build time.
 
-## Fare alerts backend (M1)
+## Fare alerts backend (M1 + M2 paywall)
 
 The subscribe UI on `/app` calls an AWS HTTP API (`VITE_FLIGHT_API_URL`); the browser holds no AWS credentials. Lambda sources live in `aws/lambdas/`:
 
@@ -47,4 +47,19 @@ The subscribe UI on `/app` calls an AWS HTTP API (`VITE_FLIGHT_API_URL`); the br
 | `parser` | Next month's cheapest fare from Travelpayouts (TWD gate, USD extra) → enqueues matches to SQS `flight-fare-queue` |
 | `fare_notification` | SQS consumer → dedups via `notification_history` (24h floor, re-alert on ≥20% or ≥NT$2,000 drop) → emails via Resend |
 
-API keys are read at runtime from AWS Secrets Manager (`flight/travelpayouts`, `flight/resend`) — never commit them.
+### Paid subscriptions (M2, ECPay 信用卡定期定額)
+
+| Lambda | Role |
+| --- | --- |
+| `save_subscription` | `POST /subscribe` → new/unpaid rows become `pending_payment` and get an ECPay recurring checkout form (NT$ amount from `flight/ecpay`); paid rows update the target in place |
+| `ecpay_return` | `POST /ecpay-return` (ECPay ReturnURL, first charge) → verifies CheckMacValue → `active` + `current_period_end` |
+| `ecpay_period` | `POST /ecpay-period` (PeriodReturnURL, renewals) → extends the period; expires after 6 consecutive failures |
+| `ecpay_result` | `ANY /ecpay-result` (OrderResultURL) → 302 back to `/app?purchase=…` (a static SPA would 405 on ECPay's POST) |
+| `cancel_subscription` | `POST /cancel` → ECPay `CreditCardPeriodAction` Cancel → `cancelled` (alerts continue until `current_period_end`) |
+| `status_notification` | `flight-status-queue` consumer → welcome / cancel emails via Resend |
+
+Lifecycle: `pending_payment → active → cancelled (grace) → expired`. The parser only alerts `active` rows and `cancelled` rows still inside their paid period, and expires lapsed ones. `/subscribe`, `/subscriptions` and `/cancel` require the Supabase access token (`Authorization: Bearer …`).
+
+Tests: `python3 aws/tests/test_m2_flow.py` (offline lifecycle) and `python3 aws/tests/test_ecpay_cmv.py <ecpay/test-vectors/checkmacvalue.json>`.
+
+API keys are read at runtime from AWS Secrets Manager (`flight/travelpayouts`, `flight/resend`, `flight/ecpay`, `flight/supabase`) — never commit them.

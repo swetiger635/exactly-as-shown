@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { CheckCircle2, LogOut, X, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SiteHeader, SiteFooter } from "@/components/SiteHeader";
@@ -23,6 +23,13 @@ export default function AppPage() {
   const user = useAuthUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const purchase = params.get("purchase");
+
+  function dismissPurchase() {
+    params.delete("purchase");
+    setParams(params, { replace: true });
+  }
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -46,7 +53,38 @@ export default function AppPage() {
           <h1 className="break-all text-center text-3xl font-bold">
             Hi <span className="text-gradient">{user.email}</span>
           </h1>
-          {user.email && <SubscribePlans email={user.email} />}
+          {(purchase === "success" || purchase === "failed") && (
+            <div
+              role="status"
+              className={`flex w-full max-w-5xl items-start gap-3 rounded-2xl border p-4 text-left ${
+                purchase === "success"
+                  ? "border-accent bg-accent/40"
+                  : "border-destructive/40 bg-destructive/10"
+              }`}
+            >
+              {purchase === "success" ? (
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary-glow" />
+              ) : (
+                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              )}
+              <p className="flex-1 text-sm">
+                {purchase === "success"
+                  ? "付款完成，謝謝！訂閱狀態會在幾秒內更新為「已訂閱」，我們也會寄一封確認信給你。"
+                  : "這次付款沒有成功，沒有扣款。你可以在下方按「完成付款」再試一次。"}
+              </p>
+              <button
+                type="button"
+                onClick={dismissPurchase}
+                aria-label="關閉"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {user.email && (
+            <SubscribePlans email={user.email} awaitingPayment={purchase === "success"} />
+          )}
         </div>
       </main>
       <SiteFooter />
